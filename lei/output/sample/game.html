@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Star Defender</title>
+<style>
+*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0b1026;color:#f6f4ff;font-family:system-ui,sans-serif;padding:20px}.game{width:min(100%,680px)}header{display:flex;align-items:center;justify-content:space-between;gap:16px}h1{font-size:clamp(24px,5vw,36px);margin:0}p{color:#aeb8dc;line-height:1.5}.stats{display:flex;gap:16px;font-weight:700;font-variant-numeric:tabular-nums}.stage{position:relative;border:1px solid #39456b;border-radius:20px;overflow:hidden;background:#111a38;box-shadow:0 24px 80px #0005}canvas{display:block;width:100%;aspect-ratio:640/500}.overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:24px;background:#0b1026df}.overlay[hidden]{display:none}h2{font-size:36px;margin:0 0 8px}.overlay p{max-width:330px}button{border:0;border-radius:12px;background:#ffda73;color:#272039;padding:14px 24px;font:700 16px system-ui;cursor:pointer}button:hover{background:#ffe7a3}button:focus-visible{outline:3px solid white;outline-offset:4px}.controls{display:flex;justify-content:center;gap:16px;margin-top:16px}.controls button{background:#253357;color:white;min-width:88px;touch-action:none;user-select:none}.hint{text-align:center;font-size:14px}footer{text-align:center;color:#7887b2;font-size:12px;margin-top:16px}
+</style>
+</head>
+<body>
+<main class="game">
+<header><h1>✦ Star Defender</h1><div class="stats"><span id="destroyed">★ 0 / 10</span><span id="missed">Missed 0 / 3</span></div></header>
+<p>Defend the night sky. Shoot 10 stars before you miss 3.</p>
+<div class="stage">
+<canvas id="sky" width="640" height="500" aria-label="Falling stars and a tank controlled with left and right arrow keys"></canvas>
+<div class="overlay" id="overlay"><h2 id="title">Ready, aim, starlight!</h2><p id="message">Move with ← and →. Hold Space to shoot, or use the buttons below.</p><button id="start">Start game</button></div>
+</div>
+<div class="controls" aria-label="Tank controls"><button id="left" aria-label="Move left">←</button><button id="fire" aria-label="Shoot">Fire</button><button id="right" aria-label="Move right">→</button></div>
+<p class="hint">← → to move · Space to shoot · Destroy 10 to win · Miss 3 and it’s game over</p>
+<div id="announcement" role="status" aria-live="polite" class="hint"></div>
+<footer>A pocket-sized night sky</footer>
+</main>
+<script>
+'use strict';
+const canvas=document.getElementById('sky'),ctx=canvas.getContext('2d');
+const overlay=document.getElementById('overlay'),title=document.getElementById('title'),message=document.getElementById('message'),start=document.getElementById('start');
+const destroyedLabel=document.getElementById('destroyed'),missedLabel=document.getElementById('missed'),announcement=document.getElementById('announcement');
+const W=640,H=500,tank={x:320,y:444,w:94,h:34};
+let bullets=[],shotIn=0,stars=[],particles=[],destroyed=0,missed=0,running=false,spawnIn=0,lastTime=0;
+const keys=new Set(),held=new Set();
+const backdrop=Array.from({length:65},(_,i)=>({x:(i*137.51)%W,y:(i*83.37)%420,r:i%3===0?1.6:.8}));
+function updateScore(){destroyedLabel.textContent=`★ ${destroyed} / 10`;missedLabel.textContent=`Missed ${missed} / 3`;}
+function begin(){bullets=[];shotIn=0;stars=[];particles=[];destroyed=0;missed=0;tank.x=W/2;spawnIn=.5;keys.clear();held.clear();updateScore();announcement.textContent='';overlay.hidden=true;running=true;lastTime=performance.now();start.blur();}
+function finish(won){running=false;keys.clear();held.clear();title.textContent=won?'You destroyed the stars!':'The stars slipped away';message.textContent=won?'Ten stars destroyed. Mission complete!':`You destroyed ${destroyed} ${destroyed===1?'star':'stars'}. Give the night sky another try.`;start.textContent='Play again';overlay.hidden=false;announcement.textContent=won?'You win! 10 stars destroyed.':'Game over. 3 stars missed.';start.focus();}
+function starShape(x,y,r,rotation=0){ctx.beginPath();for(let i=0;i<10;i++){const a=rotation-Math.PI/2+i*Math.PI/5,rr=i%2?r*.45:r;const px=x+Math.cos(a)*rr,py=y+Math.sin(a)*rr;i?ctx.lineTo(px,py):ctx.moveTo(px,py);}ctx.closePath();}
+function update(dt){
+ const direction=Number(keys.has('ArrowRight')||held.has('right'))-Number(keys.has('ArrowLeft')||held.has('left'));
+ tank.x=Math.max(tank.w/2+8,Math.min(W-tank.w/2-8,tank.x+direction*410*dt));
+ spawnIn-=dt;if(spawnIn<=0){stars.push({x:24+Math.random()*(W-48),y:-20,r:14,speed:155+destroyed*6,angle:Math.random()});spawnIn=1.15;}
+ shotIn=Math.max(0,shotIn-dt);
+ if((keys.has(' ')||held.has('fire'))&&shotIn===0){bullets.push({x:tank.x,y:tank.y-30,previousY:tank.y-30});shotIn=.2;}
+ for(const bullet of bullets){bullet.previousY=bullet.y;bullet.y-=560*dt;}
+ for(let i=stars.length-1;i>=0;i--){
+  const s=stars[i],oldY=s.y;s.y+=s.speed*dt;s.angle+=dt*.6;
+  const hit=bullets.findIndex(b=>Math.abs(b.x-s.x)<=s.r+3&&b.y-10<=s.y+s.r&&b.previousY>=oldY-s.r);
+  if(hit!==-1){
+   bullets.splice(hit,1);stars.splice(i,1);destroyed++;
+   for(let j=0;j<12;j++)particles.push({x:s.x,y:s.y,vx:(Math.random()-.5)*180,vy:-Math.random()*160,life:.6});
+   updateScore();if(destroyed>=10){finish(true);break;}
+  }else if(s.y-s.r>H){stars.splice(i,1);missed++;updateScore();announcement.textContent=`Missed ${missed} of 3 stars.`;if(missed>=3){finish(false);break;}}
+ }
+ bullets=bullets.filter(b=>b.y>-20);
+ particles=particles.filter(p=>p.life>0);for(const p of particles){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=230*dt;}
+}
+function draw(){
+ const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'#111932');g.addColorStop(1,'#232747');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ for(const s of backdrop){ctx.fillStyle='#9facdb88';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();}
+ ctx.fillStyle='#ddd9ff';ctx.beginPath();ctx.arc(563,63,22,0,Math.PI*2);ctx.fill();ctx.fillStyle='#131b35';ctx.beginPath();ctx.arc(573,55,21,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#ffffff06';ctx.fillRect(0,480,W,20);
+ for(const s of stars){ctx.save();ctx.shadowColor='#ffda73';ctx.shadowBlur=20;ctx.fillStyle='#ffdc76';starShape(s.x,s.y,s.r,s.angle);ctx.fill();ctx.restore();}
+ for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/.6);ctx.fillStyle='#ffe29a';ctx.fillRect(p.x,p.y,4,4);}ctx.globalAlpha=1;
+ for(const b of bullets){ctx.fillStyle='#a7fff1';ctx.fillRect(b.x-3,b.y-10,6,18);}
+ const x=tank.x,y=tank.y;
+ ctx.fillStyle='#111b29';ctx.fillRect(x-47,y+12,94,26);
+ for(let i=-34;i<=34;i+=17){ctx.fillStyle='#728195';ctx.beginPath();ctx.arc(x+i,y+25,8,0,Math.PI*2);ctx.fill();ctx.fillStyle='#253349';ctx.beginPath();ctx.arc(x+i,y+25,4,0,Math.PI*2);ctx.fill();}
+ ctx.fillStyle='#51b8a2';ctx.beginPath();ctx.moveTo(x-43,y+17);ctx.lineTo(x-32,y);ctx.lineTo(x+32,y);ctx.lineTo(x+43,y+17);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#86e0bd';ctx.fillRect(x-21,y-10,42,17);ctx.fillRect(x-6,y-33,12,27);
+ ctx.fillStyle='#d9fff0';starShape(x,y+5,7);ctx.fill();
+}
+function frame(time){const dt=Math.min((time-lastTime)/1000,.04);lastTime=time;if(running&&!document.hidden)update(dt);draw();requestAnimationFrame(frame);}
+window.addEventListener('keydown',e=>{if(e.key==='ArrowLeft'||e.key==='ArrowRight'||e.key===' '){e.preventDefault();if(running)keys.add(e.key);}});
+window.addEventListener('keyup',e=>keys.delete(e.key));
+window.addEventListener('blur',()=>{keys.clear();held.clear();});
+document.addEventListener('visibilitychange',()=>{keys.clear();held.clear();lastTime=performance.now();});
+for(const id of ['left','right','fire']){const button=document.getElementById(id);button.addEventListener('pointerdown',e=>{e.preventDefault();button.setPointerCapture(e.pointerId);held.add(id);});for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,()=>held.delete(id));}
+start.addEventListener('click',begin);requestAnimationFrame(frame);
+</script>
+</body>
+</html>
