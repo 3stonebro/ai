@@ -1,0 +1,1 @@
+make it so when every you click on the potato, you gain 1 potato and with potatos you can buy upgrades for example: 2 potatos per click or 1 potato per second
