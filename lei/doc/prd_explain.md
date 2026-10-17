@@ -1,0 +1,1 @@
+Explain lei/ouput/sample/game.html in 5 short bullets for a 5-year old. say which part is html, css, javascript
