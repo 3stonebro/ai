@@ -1,0 +1,1 @@
+I need a web-based program, on which user can enter a ticker of a stock, and the start and end date, it pull historical market data from the web and show the data on the webpage, and also draw a graph of close price on the webpage
