@@ -1,0 +1,1 @@
+Change index.html into a start page for my arcade: my game's title, one sentence about it, and a big Play button that opens game.html.
