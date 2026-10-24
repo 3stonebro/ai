@@ -1,0 +1,1 @@
+make it so when you enter that game, it shows that in the front page, it is another coding page, and when you type "/open" and press enter, it says access granted, and it shows an arcade, with many different games to play
