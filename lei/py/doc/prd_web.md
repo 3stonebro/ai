@@ -1,4 +1,4 @@
-I need to create a web-based program with the following features
+I need to create a web-based program using only javascript with the following features
 - user can enter a ticker of a stock, and the start and end date
 - it pulls historical market data from the web
 - it shows the data on the webpage

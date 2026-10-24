@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>弈趣 · 棋类游戏菜单</title>
+<style>
+:root{color-scheme:dark;--gold:#d7b77b;--ink:#eee9dc;--muted:#a2aaa2}*{box-sizing:border-box}body{margin:0;min-height:100vh;color:var(--ink);font:17px/1.6 system-ui,-apple-system,"PingFang SC",sans-serif;background:radial-gradient(ellipse at 25% 10%,#29453a88,transparent 65%),#101e1b}header{max-width:1100px;margin:auto;padding:28px 30px;border-bottom:1px solid #ffffff18;font:28px serif;letter-spacing:4px}header span{color:var(--gold)}main{max-width:1000px;margin:auto;padding:65px 30px}.eyebrow{color:var(--gold);font-size:12px;letter-spacing:4px}h1{font:600 42px/1.3 serif;margin:12px 0}p{color:var(--muted);margin:0 0 35px}.menu{display:grid;grid-template-columns:1fr 1fr;gap:24px}.card{background:linear-gradient(145deg,#25403388,#152722);border:1px solid #ffffff20;border-radius:18px;padding:32px;display:flex;flex-direction:column;align-items:flex-start;box-shadow:0 18px 40px #0002}.icon{display:flex;align-items:center;justify-content:center;width:78px;height:78px;margin-bottom:24px;border-radius:50%;font:bold 47px serif;color:#a52b22;background:radial-gradient(circle at 30% 20%,#ffe8b6,#e7ba72 60%,#b87b37);box-shadow:3px 7px 0 #8c5c2a,6px 12px 18px #0006;border:3px double #985826}.go-icon{width:78px;height:78px;position:relative;margin-bottom:24px}.go-icon:before,.go-icon:after{content:"";position:absolute;width:55px;height:55px;border-radius:50%;box-shadow:3px 6px 10px #0008}.go-icon:before{left:0;top:0;background:radial-gradient(circle at 30% 25%,#656b69,#151a18 60%,#030605)}.go-icon:after{right:0;bottom:0;background:radial-gradient(circle at 30% 25%,white,#e3e4da 65%,#9aa89c)}h2{font:600 29px serif;margin:6px 0 12px}.card p{font-size:16px;margin-bottom:25px}.button{display:inline-block;margin-top:auto;color:#17291f;background:var(--gold);border:1px solid #ead0a2;border-radius:8px;padding:12px 25px;font-weight:650;text-decoration:none;transition:background .15s,transform .15s}.button:hover{background:#ebcd95;transform:translateY(-2px)}.button:focus-visible{outline:3px solid #fff;outline-offset:5px}.meta{font-size:13px;color:var(--gold);margin-bottom:22px}footer{color:var(--muted);font-size:13px;text-align:center;padding:35px 20px}@media(max-width:650px){main{padding:35px 20px}.menu{grid-template-columns:1fr}h1{font-size:33px}.card{padding:26px}header{padding:20px}}
+.total-time{display:inline-block;margin:0 0 28px;padding:12px 18px;border:1px solid #d7b77b40;border-radius:10px;color:var(--gold);background:#152722;font-variant-numeric:tabular-nums;font-size:18px}
+</style>
+</head>
+<body>
+<header><span>弈趣</span> · 棋类游戏</header>
+<main>
+<div class="eyebrow">静心落子 · 乐在棋中</div>
+<h1>选一盘棋，慢慢对弈</h1>
+<p>与电脑切磋，或与朋友同屏对弈。</p>
+<div class="total-time" id="totalTimePlayed">Total Time Played: 0h 0m 0s</div>
+<nav class="menu" aria-label="游戏菜单">
+<article class="card"><div class="icon" aria-hidden="true">帅</div><h2>中国象棋</h2><p>楚河汉界，车马纵横。调兵遣将，在攻守之间寻找制胜的一步。</p><div class="meta">人机 / 双人 · 三种难度 · 立体棋盘</div><a class="button" href="game_cn_chess.html">开始象棋 →</a></article>
+<article class="card"><div class="go-icon" aria-hidden="true"></div><h2>围棋</h2><p>一黑一白，落子成势。在方寸棋盘上，感受围地与取舍的智慧。</p><div class="meta">人机 / 双人 · 三种难度 · 多种棋盘</div><a class="button" href="game_cn_go.html">开始围棋 →</a></article>
+</nav>
+</main>
+<footer>离线可玩 · 无需安装 · 在游戏顶部点击「← Menu」返回菜单</footer>
+<script>
+'use strict';
+(() => {
+  const prefix = 'lei.games.time.session.v1.';
+  const totalKey = 'lei.games.totalTimePlayedMs.v1';
+  const label = document.getElementById('totalTimePlayed');
+  function readNumber(value){ const n = Number(value); return Number.isFinite(n) && n >= 0 ? n : 0; }
+  function refreshTotal(){
+    let total = 0;
+    try {
+      for(let i = 0; i < localStorage.length; i++){
+        const key = localStorage.key(i);
+        if(key && key.startsWith(prefix)) total += readNumber(localStorage.getItem(key));
+      }
+      // Keep the combined total on the menu as well as the original session times.
+      localStorage.setItem(totalKey, String(Math.floor(total)));
+    } catch {
+      try { total = readNumber(localStorage.getItem(totalKey)); } catch {}
+    }
+    const seconds = Math.floor(total / 1000);
+    label.textContent = 'Total Time Played: ' + Math.floor(seconds / 3600) + 'h ' + Math.floor(seconds % 3600 / 60) + 'm ' + seconds % 60 + 's';
+  }
+  window.addEventListener('storage', event => {
+    if(event.key === null || event.key.startsWith(prefix)) refreshTotal();
+  });
+  window.addEventListener('pageshow', refreshTotal);
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refreshTotal(); });
+  refreshTotal();
+})();
+</script>
+</body>
+</html>
