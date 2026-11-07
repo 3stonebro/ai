@@ -1,6 +1,7 @@
 import SwiftUI
 import Charts
 import HealthKit
+import UniformTypeIdentifiers
 
 @MainActor
 final class StepStore: ObservableObject {
@@ -110,8 +111,27 @@ struct QifarmApp: App {
     }
 }
 
+struct ActivityExport: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data: Data
+    init(periods: [StepPeriod]) {
+        let formatter = ISO8601DateFormatter()
+        let records: [[String: Any]] = periods.map {
+            ["start": formatter.string(from: $0.start), "end": formatter.string(from: $0.end),
+             "steps": $0.steps, "breakSeconds": $0.breakSeconds]
+        }
+        data = (try? JSONSerialization.data(withJSONObject: ["version": 1, "periods": records], options: [.prettyPrinted, .sortedKeys])) ?? Data()
+    }
+    init(configuration: ReadConfiguration) throws { data = configuration.file.regularFileContents ?? Data() }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper {
+        FileWrapper(regularFileWithContents: data)
+    }
+}
+
 struct ContentView: View {
     @StateObject private var store = StepStore()
+    @State private var exporting = false
+    @State private var exportError: String?
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -173,6 +193,12 @@ struct ContentView: View {
                         Label("Filtered", systemImage: "line.3.horizontal.decrease.circle")
                     }
                     .disabled(!store.loaded || store.loading)
+                    if store.loaded && !store.loading {
+                        Button("Export activity for web app", systemImage: "square.and.arrow.up") { exporting = true }
+                        Text("Save the JSON file, then import it in the 元气农场 web app. It contains activity times and step counts.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let exportError { Text(exportError).foregroundStyle(.red) }
                     if let updated = store.updated {
                         Text("Updated \(updated.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption).foregroundStyle(.secondary)
@@ -184,6 +210,11 @@ struct ContentView: View {
             .navigationTitle("元气农场")
             .background(Color(.systemGroupedBackground))
         }.tint(.teal)
+        .fileExporter(isPresented: $exporting, document: ActivityExport(periods: store.rawPeriods),
+                      contentType: .json, defaultFilename: "qifarm-activity") { result in
+            if case .failure(let error) = result { exportError = error.localizedDescription }
+            else { exportError = nil }
+        }
     }
 }
 

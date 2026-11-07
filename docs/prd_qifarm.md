@@ -2,9 +2,10 @@
 
 ## General
 
-- [ ] Create a native iOS app and save the project to `./lei/output`.
-- [ ] Name the app **元气农场**.
-- [ ] Add an iOS app icon.
+- Create a native iOS app and web-based app and save the project to `./lei/output`.
+- Name the app **元气农场**.
+- For the iOS app, add an iOS app icon.
+- For the web-based app, add a logo  
 
 ## Interface
 
