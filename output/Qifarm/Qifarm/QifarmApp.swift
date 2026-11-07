@@ -116,6 +116,7 @@ struct ActivityExport: FileDocument {
     var data: Data
     init(periods: [StepPeriod]) {
         let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let records: [[String: Any]] = periods.map {
             ["start": formatter.string(from: $0.start), "end": formatter.string(from: $0.end),
              "steps": $0.steps, "breakSeconds": $0.breakSeconds]

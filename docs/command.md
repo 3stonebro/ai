@@ -1,5 +1,5 @@
 # generate
-read/lei/docs/prd_qifarm.md and do what is asked inside it.
+Read docs/prd_qifarm.md and do what is asked inside it.
 
 # create html pages
 Read prd_cn_chess.md and build that game as one file named game_cn_chess.html and save it to lei/output/

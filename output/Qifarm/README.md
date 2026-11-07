@@ -1,6 +1,6 @@
 # 元气农场 — longer walking periods
 
-Native SwiftUI iPhone app for iOS 17+, named **元气农场**, in `lei/output/Qifarm`. The Xcode project and target remain named Qifarm.
+Native SwiftUI iPhone app for iOS 17+, named **元气农场**, in `output/Qifarm`. The Xcode project and target remain named Qifarm.
 
 ## Run
 
@@ -43,7 +43,7 @@ An opaque 1024×1024 teal footsteps icon is included in the AppIcon asset catalo
 ## Verification
 
 ```sh
-swiftc Qifarm/StepPeriod.swift Tests/main.swift -o /tmp/qifarm-period-tests
+swiftc Qifarm/StepPeriod.swift tests/main.swift -o /tmp/qifarm-period-tests
 /tmp/qifarm-period-tests
 xcodebuild -project Qifarm.xcodeproj -scheme Qifarm -sdk iphonesimulator -configuration Debug -derivedDataPath /tmp/qifarm-minute-build CODE_SIGNING_ALLOWED=NO build
 ```
@@ -53,3 +53,17 @@ Grouping tests cover zero/missing buckets, fractional values, sorting, boundarie
 On an iPhone, validate real Health data, multiple sources, a long history, cross-midnight periods, daylight saving changes, denied/revoked access, query errors, and refresh after edits in Health. Actual Health authorization and data access require device verification.
 
 HealthKit aggregation follows [Apple’s statistics collection query documentation](https://developer.apple.com/documentation/healthkit/executing-statistics-collection-queries).
+
+## Web app
+
+Open `web/index.html` in a modern browser, or serve `web/` with a static HTTP server. The app has no runtime dependencies, network requests, account, or server storage. A custom SVG sprout logo is included. This follows the repository’s reorganized `output/` layout rather than recreating the old ignored `lei/output/` directory.
+
+Browsers cannot request HealthKit authorization. On iPhone, read Health data in the native app, tap **Export activity for web app**, and save the JSON file. Transfer that file to the browser’s device and choose **iPhone Health App → Import activity JSON**. Both devices must use the same time zone. Exports contain sensitive activity timestamps and counts; share them only with the intended device. The web app processes them in memory and clears them on reload or **Clear data**.
+
+The web app merges native continuous periods using the same strict five-minute rule, applies the strict active-duration and cadence thresholds, and shows Filtered and Unfiltered views, daily totals, an overall qualifying total, and a daily qualifying-minutes chart. Unfiltered includes cadence and break duration. Invalid, overlapping, future-dated, or cross-midnight input is rejected without replacing existing results. The native export already splits periods at midnight and uses HealthKit’s aggregation across sources. Raw Apple Health XML is not supported because summing its overlapping samples would not reproduce that aggregation.
+
+**Explore demo** loads clearly labeled illustrative activity; it never represents Health authorization or real data. Empty imports display zero minutes. Only dates with qualifying walks have bars.
+
+The version 1 JSON format is `{ "version": 1, "periods": [{ "start": "ISO-8601 timestamp", "end": "ISO-8601 timestamp", "steps": 100, "breakSeconds": 0 }] }`. Periods must not overlap or cross local midnight. Use native exports for correct minute estimates.
+
+Web calculation verification (Node.js): `node web/activity.test.cjs`. Real Health permissions, device export/import, and visual browser layout still need device/browser verification.
