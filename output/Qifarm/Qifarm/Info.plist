@@ -4,14 +4,14 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>元气农场</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
-	<key>CFBundleDisplayName</key>
-	<string>元气农场</string>
 	<key>CFBundleName</key>
 	<string>元气农场</string>
 	<key>CFBundlePackageType</key>
@@ -21,7 +21,20 @@
 	<key>CFBundleVersion</key>
 	<string>1</string>
 	<key>NSHealthShareUsageDescription</key>
-	<string>元气农场 reads your step counts to show total steps grouped into walking periods. Your health data stays on your device.</string>
+	<string>元气农场 reads step counts to group walking periods and workouts saved by AllTrails to display activity times, distance, and available elevation. When you are signed in, activity results are saved to your private Supabase account.</string>
+	<key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleURLName</key>
+            <string>Qifarm Authentication</string>
+            <key>CFBundleURLSchemes</key>
+            <array><string>qifarm</string></array>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+        </dict>
+    </array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+    <string>元气农场 can save an approximate location to your private profile when you choose to share it. You can continue without sharing location.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

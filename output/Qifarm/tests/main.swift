@@ -32,12 +32,14 @@ check(StepPeriod.qualifying([period(0, 30, 3000)]).isEmpty, "Exactly 30 minutes 
 check(StepPeriod.qualifying([period(0, 31, 1860)]).isEmpty, "Exactly 60 steps/minute excluded")
 check(StepPeriod.qualifying([period(0, 31, 1859)]).isEmpty, "Below 60 steps/minute excluded")
 check(StepPeriod.qualifying([period(0, 31, 1861)]).count == 1, "Above both strict thresholds")
-let merged = StepPeriod.qualifying([period(20, 35, 1000), period(0, 16, 1000)])
-check(merged.count == 1 && merged[0].steps == 2000 && merged[0].elapsedMinutes == 35,
+let merged = StepPeriod.qualifying([period(20, 35, 1200), period(0, 16, 1200)])
+check(merged.count == 1 && merged[0].steps == 2400 && merged[0].elapsedMinutes == 35,
       "Merge before filtering; elapsed time includes break")
 check(merged[0].walkingMinutes == 31, "Walking time excludes four-minute break")
-check(merged[0].averageStepsPerMinute > 60 && merged[0].steps / merged[0].elapsedMinutes < 60,
-      "Pace denominator excludes breaks")
+check(abs(merged[0].averageStepsPerMinute - 2400.0 / 35) < 0.00001,
+      "Cadence denominator includes breaks")
+check(StepPeriod.qualifying([period(20,35,1000),period(0,16,1000)]).isEmpty,
+      "Active cadence over 60 cannot qualify when elapsed cadence is below 60")
 check(StepPeriod.qualifying([period(0, 16, 2000), period(21, 37, 2000)]).isEmpty,
       "Exactly five-minute break must not merge")
 check(StepPeriod.qualifying([period(0, 16, 2000), period(22, 38, 2000)]).isEmpty,
@@ -86,7 +88,7 @@ check(StepPeriod.qualifying([period(0, 10, 1000), period(14, 24, 1000), period(2
       "Exactly 30 active minutes excluded despite 38 elapsed minutes and high cadence")
 check(StepPeriod.qualifying([period(0, 15, 1500), period(19, 33, 1400)]).isEmpty,
       "Under 30 active minutes excluded despite over 30 elapsed minutes")
-check(StepPeriod.qualifying([period(0, 15, 1500), period(19, 34.01, 1501)]).count == 1,
+check(StepPeriod.qualifying([period(0, 15, 1500), period(19, 34.01, 2000)]).count == 1,
       "Just over 30 active minutes qualifies with sufficient cadence")
 print("All active-duration threshold checks passed.")
 
@@ -99,3 +101,108 @@ check(!reportedGroups[0].isQualifying, "Grouped example remains visible despite 
 check(StepPeriod.grouped([period(0, 15, 100), period(20, 35, 100)]).count == 2,
       "Grouped page preserves exact-five-minute boundary")
 print("All grouped-page checks passed.")
+
+func trail(_ meters: Double?, minutes: Double = 60) -> TrailActivity {
+    TrailActivity(id: "test", name: "Walk", start: origin, end: origin.addingTimeInterval(7200),
+                  movingMinutes: minutes, distanceMeters: meters, elevationGainMeters: nil)
+}
+check(trail(2000).isQualifying, "Exactly 2 km/h retained")
+check(trail(5000).isQualifying, "Exactly 5 km/h retained")
+check(!trail(1999.99).isQualifying, "Just below 2 km/h excluded before rounding")
+check(!trail(5000.01).isQualifying, "Just above 5 km/h excluded before rounding")
+check(trail(2000, minutes: 30).averageSpeedKmh == 4, "Uses workout duration rather than elapsed time")
+check(!trail(nil).isQualifying, "Missing distance excluded")
+check(!trail(0).isQualifying, "Zero speed excluded")
+check(!trail(1000, minutes: 0).isQualifying, "Zero duration excluded")
+check(!trail(-1).isQualifying, "Negative distance excluded")
+check(!trail(.infinity).isQualifying, "Nonfinite distance excluded")
+check(!trail(3000, minutes: 150).isQualifying, "Duration exceeding elapsed time excluded")
+let encodedTrails = TrailExport(version: 1, source: "alltrails", activities: [trail(2000),
+    TrailActivity(id: "other", name: "Too fast", start: origin, end: origin.addingTimeInterval(7200),
+                  movingMinutes: 60, distanceMeters: 6000, elevationGainMeters: nil)])
+let encoder = JSONEncoder()
+encoder.dateEncodingStrategy = .iso8601
+let decodedTrails = try TrailExport.read(encoder.encode(encodedTrails))
+check(decodedTrails.count == 2 && decodedTrails.filter(\.isQualifying).count == 1, "Export/import preserves raw and processed activities")
+check(decodedTrails.filter(\.isQualifying).reduce(0) { $0 + $1.movingMinutes } == 60, "Qualifying minutes exclude fast activity")
+print("All overall-average-speed and export checks passed.")
+
+check(HealthTrailWorkout.isAllTrails(sourceName: "AllTrails", bundleIdentifier: "com.example.app"), "AllTrails source name recognized")
+check(HealthTrailWorkout.isAllTrails(sourceName: "Localized name", bundleIdentifier: "com.alltrails.AllTrails"), "AllTrails bundle component recognized")
+check(!HealthTrailWorkout.isAllTrails(sourceName: "Apple Watch", bundleIdentifier: "com.apple.health"), "Other workout sources excluded")
+check(!HealthTrailWorkout.isAllTrails(sourceName: "NotAllTrails", bundleIdentifier: "com.example.notalltrails"), "Partial source matches excluded")
+print("All Health workout source checks passed.")
+
+
+check(AuthCallback.message(for: URL(string: "qifarm://auth/callback#access_token=ignored")!) != nil, "App confirmation return recognized")
+check(AuthCallback.message(for: URL(string: "https://auth/callback")!) == nil, "Unexpected callback scheme ignored")
+check(AuthCallback.message(for: URL(string: "qifarm://other/callback")!) == nil, "Unexpected callback host ignored")
+check(AuthCallback.message(for: URL(string: "qifarm://auth/other")!) == nil, "Unexpected callback path ignored")
+check(AuthCallback.message(for: URL(string: "qifarm://user@auth/callback")!) == nil, "Callback credentials rejected")
+check(AuthCallback.message(for: URL(string: "qifarm://auth/callback#error=access_denied&error_code=otp_expired")!)?.contains("expired") == true, "Expired link gives actionable message")
+let signupComponents = URLComponents(string: AuthCallback.signupPath)!
+check(signupComponents.queryItems?.first(where: { $0.name == "redirect_to" })?.value == AuthCallback.redirectURL,
+      "Signup requests native confirmation return")
+print("All native confirmation callback checks passed.")
+
+
+check(RegistrationResponse.isDuplicate(["identities": []]), "Direct obfuscated user detected")
+check(RegistrationResponse.isDuplicate(["user": ["identities": []]]), "Nested obfuscated user detected")
+check(!RegistrationResponse.isDuplicate(["identities": [["id": "new-identity"]]]), "New user identity is not duplicate")
+check(!RegistrationResponse.isDuplicate(["id": "unknown"]), "Missing identities does not prove a duplicate")
+check(RegistrationResponse.isDuplicateError(code: "user_already_exists", message: "Conflict"), "Duplicate auth code detected")
+check(RegistrationResponse.isDuplicateError(code: nil, message: "User already registered"), "Standard duplicate error detected")
+check(!RegistrationResponse.isDuplicateError(code: nil, message: "Email rate limit exceeded"), "Rate limit is not duplicate registration")
+print("All registration-response checks passed.")
+
+
+let repeatedPeriods = StepPeriod.grouped([period(0, 40, 4000), period(0, 40, 4000)])
+check(repeatedPeriods.count == 1 && repeatedPeriods[0].steps == 4000, "Repeated period does not inflate totals")
+let updatedPeriods = StepPeriod.deduplicated([period(0, 40, 4000), period(0, 40, 4200)])
+check(updatedPeriods.count == 1 && updatedPeriods[0].steps == 4200, "Updated period replaces same interval")
+check(TrailActivity.deduplicated([trail(2000), trail(4000)]).count == 1, "Repeated workout ID stored once")
+check(TrailActivity.deduplicated([trail(2000), trail(4000)])[0].distanceMeters == 4000, "Latest workout reading replaces old values")
+print("All activity identity and repeated-refresh checks passed.")
+
+check(period(0, 30, 1000).filterExplanation.contains("active time must exceed") && period(0, 30, 1000).filterExplanation.contains("cadence must exceed"), "Both failing Health rules explained")
+check(period(0, 31, 1860).filterExplanation.contains("cadence must exceed"), "Exact cadence boundary explained")
+check(period(0, 31, 1900).filterExplanation.hasPrefix("Passed"), "Qualifying Health group marked passed")
+check(trail(nil).filterExplanation.contains("missing distance"), "Unavailable AllTrails speed explained")
+check(trail(1000).filterExplanation.contains("below 2"), "Slow AllTrails activity explained")
+check(trail(6000).filterExplanation.contains("above 5"), "Fast AllTrails activity explained")
+print("All activity pass/fail explanation checks passed.")
+
+
+let stepSnapshot = """
+{"version":1,"periods":[{"start":"2026-01-01T09:00:00.000Z","end":"2026-01-01T10:00:00Z","steps":4000,"breakSeconds":60}]}
+"""
+let restoredSnapshot = try StepHistoryArchive.read(Data(stepSnapshot.utf8))
+check(restoredSnapshot.count == 1 && restoredSnapshot[0].walkingMinutes == 59, "Cloud restore keeps active duration and supports fractional timestamps")
+for invalid in ["{}", stepSnapshot.replacingOccurrences(of: "4000", with: "-1"),
+                stepSnapshot.replacingOccurrences(of: "\"breakSeconds\":60", with: "\"breakSeconds\":3600"),
+                stepSnapshot.replacingOccurrences(of: "10:00:00Z", with: "08:00:00Z")] {
+    do { _ = try StepHistoryArchive.read(Data(invalid.utf8)); fatalError("Malformed snapshot accepted") }
+    catch { }
+}
+print("All revised-spec snapshot restoration checks passed.")
+
+func interval(_ start: Double, _ end: Double, _ minutes: Double) -> QualifiedActivityInterval {
+    QualifiedActivityInterval(start: origin.addingTimeInterval(start*60), end: origin.addingTimeInterval(end*60), minutes: minutes)
+}
+check(ActivityTotals.uniqueMinutes([]) == 0, "No qualifying intervals")
+check(ActivityTotals.uniqueMinutes([interval(0,60,60),interval(0,60,60)]) == 60, "Same walk from two sources counted once")
+check(ActivityTotals.uniqueMinutes([interval(0,60,60),interval(30,90,60)]) == 90, "Partially overlapping walks counted once")
+check(ActivityTotals.uniqueMinutes([interval(0,60,40),interval(0,60,50)]) == 50, "Overlapping summaries use highest active fraction")
+check(ActivityTotals.uniqueMinutes([interval(0,60,60),interval(60,120,60)]) == 120, "Adjacent activities remain separate in total")
+check(ActivityTotals.uniqueMinutes([interval(0,0,100)]) == 0, "Invalid interval ignored")
+print("All cross-source overlap and elapsed-cadence checks passed.")
+
+let farmPlace = FarmPlace(country: "Canada", province: "Ontario", city: "Toronto")
+check(farmPlace.displayValue == "Canada, Ontario, Toronto", "Farm location display order")
+check(FarmPlace(storedValue: farmPlace.storedValue) == farmPlace, "Structured location round trip")
+check(FarmPlace().storedValue.isEmpty && FarmPlace(storedValue: "").displayValue.isEmpty, "Unspecified location remains empty")
+check(FarmPlace(country: "Canada", city: "Toronto").displayValue == "Canada, Toronto", "Missing province does not add empty separators")
+check(FarmPlace(storedValue: "43.7, -79.4").displayValue.isEmpty, "Old coordinates are not shown as place names")
+check(FarmPlace(storedValue: "Canada, Ontario, Toronto") == farmPlace, "Existing place names remain readable")
+check(FarmPlace(storedValue: "Toronto").city == "Toronto", "Legacy manual city remains available")
+print("All country/province/city location checks passed.")
